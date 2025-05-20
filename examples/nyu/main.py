@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from utils import *
 from aspp import DeepLabHead
 from create_dataset import NYUv2
+from torch.utils.data import RandomSampler
 
 from LibMTL import Trainer
 from LibMTL.model import resnet_dilated
@@ -25,14 +26,26 @@ def main(params):
     # prepare dataloaders
     nyuv2_train_set = NYUv2(root=params.dataset_path, mode='train', augmentation=params.aug)
     nyuv2_test_set = NYUv2(root=params.dataset_path, mode='test', augmentation=False)
-    
+    if params.weighting in ['PSMGD']:
+        n = kwargs['weight_args']['n']
+        q = kwargs['weight_args']['q']
+    # nyuv2_train_loader = torch.utils.data.DataLoader(
+    #     dataset=nyuv2_train_set,
+    #     batch_size=params.train_bs,
+    #     shuffle=True,
+    #     num_workers=2,
+    #     pin_memory=True,
+    #     drop_last=True)
+    # if params.weighting in ['PSMGD']:
+    #     n = kwargs['weight_args']['n']
+    #     q = kwargs['weight_args']['q']
+
     nyuv2_train_loader = torch.utils.data.DataLoader(
         dataset=nyuv2_train_set,
-        batch_size=params.train_bs,
-        shuffle=True,
+        batch_sampler = PeriodicSquareRootSampler(RandomSampler(nyuv2_train_set),
+                        n=n, q=q),
         num_workers=2,
-        pin_memory=True,
-        drop_last=True)
+        pin_memory=True)
     
     nyuv2_test_loader = torch.utils.data.DataLoader(
         dataset=nyuv2_test_set,
@@ -104,7 +117,11 @@ def main(params):
 if __name__ == "__main__":
     params = parse_args(LibMTL_args)
     # set device
+    #single GPU use only 
+    #we can disribute tasks among GPUs
+    #we can distribute data across GPUs
     set_device(params.gpu_id)
     # set random seed
     set_random_seed(params.seed)
+    #torch.cuda.set_per_process_memory_fraction(1.0, torch.cuda.current_device())
     main(params)

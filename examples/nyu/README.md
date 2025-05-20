@@ -64,3 +64,6 @@ python main_segnet.py --weighting WEIGHTING --dataset_path PATH/nyuv2 --gpu_id G
 <a id="5">[5]</a> Bo Liu, Xingchao Liu, Xiaojie Jin, Peter Stone, and Qiang Liu. Conflict-Averse Gradient Descent for Multi-Task Learning. In *Neural Information Processing Systems*, 2021.
 
 <a id="6">[6]</a> Aviv Navon, Aviv Shamsian, Idan Achituve, Haggai Maron, Kenji Kawaguchi, Gal Chechik, and Ethan Fetaya. Multi-Task Learning as A Bargaining Game. In *International Conference on Machine Learning*, 2022.
+
+Sina's Comments:
+* Only a single GPU device selceted. Does not support multi-GPU.

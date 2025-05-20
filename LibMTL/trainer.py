@@ -7,7 +7,7 @@ from LibMTL._record import _PerformanceMeter
 from LibMTL.utils import count_parameters
 import LibMTL.weighting as weighting_method
 import LibMTL.architecture as architecture_method
-
+import copy
 class Trainer(nn.Module):
     r'''A Multi-Task Learning Trainer.
 
@@ -90,7 +90,8 @@ class Trainer(nn.Module):
         self.scheduler_param = scheduler_param
         self.save_path = save_path
         self.load_path = load_path
-
+        self.prev_model = None
+        self.weighting = weighting
         self._prepare_model(weighting, architecture, encoder_class, decoders)
         self._prepare_optimizer(optim_param, scheduler_param)
         
@@ -215,8 +216,34 @@ class Trainer(nn.Module):
             self.model.train()
             self.meter.record_time('begin')
             for batch_index in range(train_batch):
+
                 if not self.multi_input:
                     train_inputs, train_gts = self._process_data(train_loader)
+                else:
+                    train_inputs, train_gts = {}, {}
+                    for task in self.task_name:
+                        train_inputs[task], train_gts[task] = self._process_data(train_loader[task])
+
+                if self.weighting == 'PSMGD' and self.prev_model:
+                    prev_model_copy = copy.deepcopy(self.model)
+                    prev_model_copy.load_state_dict(self.prev_model)
+                    prev_model_copy.train()
+
+                    if not self.multi_input:
+                        prev_train_preds = prev_model_copy(train_inputs)
+                        prev_train_preds = self.process_preds(prev_train_preds)
+                        prev_train_losses = self._compute_loss(prev_train_preds, train_gts)
+                    else:
+                        prev_train_losses = torch.zeros(self.task_num).to(self.device)
+                        for tn, task in enumerate(self.task_name):
+                            prev_train_pred = prev_model_copy(train_inputs[task], task)
+                            prev_train_pred = prev_train_pred[task]
+                            prev_train_pred = self.process_preds(prev_train_pred, task)
+                            prev_train_losses[tn] = self._compute_loss(prev_train_pred, train_gts[task], task)
+                    del prev_model_copy
+                    torch.cuda.empty_cache()
+
+                if not self.multi_input:
                     train_preds = self.model(train_inputs)
                     train_preds = self.process_preds(train_preds)
                     train_losses = self._compute_loss(train_preds, train_gts)
@@ -224,19 +251,26 @@ class Trainer(nn.Module):
                 else:
                     train_losses = torch.zeros(self.task_num).to(self.device)
                     for tn, task in enumerate(self.task_name):
-                        train_input, train_gt = self._process_data(train_loader[task])
-                        train_pred = self.model(train_input, task)
+                        train_pred = self.model(train_inputs[task], task)
                         train_pred = train_pred[task]
                         train_pred = self.process_preds(train_pred, task)
-                        train_losses[tn] = self._compute_loss(train_pred, train_gt, task)
-                        self.meter.update(train_pred, train_gt, task)
+                        train_losses[tn] = self._compute_loss(train_pred, train_gts[task], task)
+                        self.meter.update(train_pred, train_gts[task], task)
 
                 self.optimizer.zero_grad(set_to_none=False)
-                w = self.model.backward(train_losses, **self.kwargs['weight_args'])
+
+                if self.weighting == 'PSMGD' and self.prev_model:
+                    w = self.model.backward(train_losses, prev_train_losses=prev_train_losses, **self.kwargs['weight_args'])
+                else:
+                    w = self.model.backward(train_losses, prev_train_losses=None, **self.kwargs['weight_args'])
                 if w is not None:
                     self.batch_weight[:, epoch, batch_index] = w
+
+                if self.weighting == 'PSMGD':
+                    self.prev_model = copy.deepcopy(self.model.state_dict())
+
                 self.optimizer.step()
-            
+
             self.meter.record_time('end')
             self.meter.get_score()
             self.model.train_loss_buffer[:, epoch] = self.meter.loss_item
@@ -247,11 +281,11 @@ class Trainer(nn.Module):
                 self.meter.has_val = True
                 val_improvement = self.test(val_dataloaders, epoch, mode='val', return_improvement=True)
             self.test(test_dataloaders, epoch, mode='test')
-            if self.scheduler is not None:
-                if self.scheduler_param['scheduler'] == 'reduce' and val_dataloaders is not None:
-                    self.scheduler.step(val_improvement)
-                else:
-                    self.scheduler.step()
+            # if self.scheduler is not None:
+            #     # if self.scheduler_param['scheduler'] == 'reduce' and val_dataloaders is not None:
+            #     #     #self.scheduler.step(val_improvement)
+            #     # else:
+            #     #     #self.scheduler.step()
             if self.save_path is not None and self.meter.best_result['epoch'] == epoch:
                 torch.save(self.model.state_dict(), os.path.join(self.save_path, 'best.pt'))
                 print('Save Model {} to {}'.format(epoch, os.path.join(self.save_path, 'best.pt')))

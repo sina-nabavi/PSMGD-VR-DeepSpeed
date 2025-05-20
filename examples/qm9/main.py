@@ -8,7 +8,8 @@ from LibMTL.utils import set_random_seed, set_device
 from LibMTL.config import LibMTL_args, prepare_args
 from LibMTL.loss import MSELoss
 
-from utils import QM9Metric
+from torch.utils.data import RandomSampler
+from utils import QM9Metric, PeriodicSquareRootSampler
 from torch.nn import GRU, Linear, ReLU, Sequential
 import torch_geometric.transforms as T
 from torch_geometric.datasets import QM9
@@ -27,7 +28,6 @@ def parse_args(parser):
     
 def main(params):
     kwargs, optim_param, scheduler_param = prepare_args(params)
-
     scheduler_param = {'scheduler': 'reduce',
                    'mode': 'max',
                    'factor': 0.7, 
@@ -93,7 +93,14 @@ def main(params):
     test_loader = DataLoader(test_dataset, batch_size=params.bs, shuffle=False, num_workers=2, pin_memory=True)
     val_loader = DataLoader(val_dataset, batch_size=params.bs, shuffle=False, num_workers=2, pin_memory=True)
     train_loader = DataLoader(train_dataset, batch_size=params.bs, shuffle=True, num_workers=2, pin_memory=True)
-
+    # if params.weighting in ['PSMGD']:
+    #     n = kwargs['weight_args']['n']
+    # train_loader = torch.utils.data.DataLoader(
+    #     dataset=train_dataset,
+    #     batch_sampler = PeriodicSquareRootSampler(RandomSampler(train_dataset),
+    #                     n=n, q=5),
+    #     num_workers=2,
+    #     pin_memory=True)
     # define tasks
     task_dict = {}
     for _, t in enumerate(target):

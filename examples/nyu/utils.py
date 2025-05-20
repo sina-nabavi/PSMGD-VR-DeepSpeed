@@ -109,3 +109,75 @@ class NormalLoss(AbsLoss):
         binary_mask = (torch.sum(gt, dim=1) != 0).float().unsqueeze(1).to(pred.device)
         loss = 1 - torch.sum((pred*gt)*binary_mask) / torch.nonzero(binary_mask, as_tuple=False).size(0)
         return loss
+
+from torch.utils.data import Sampler
+import math
+
+class PeriodicSquareRootSampler(Sampler):
+    r"""Batch sampler with varying batch sizes. The batch size changes
+        periodically based on the iteration number.
+    """
+    def __init__(self, sampler, n=None, q=None, drop_last=False):
+        self.sampler = sampler
+        self.n = n
+        self.q = q #math.ceil(math.sqrt(self.n))
+        self.step=0
+        self.drop_last = drop_last
+
+    def __len__(self):
+        if self.drop_last:
+            pass
+        else:
+            y = len(self.sampler)
+            periods=math.floor(y / ((2*self.n)-self.q))
+            chunks=y-(periods*((2*self.n) - self.q))
+            num_batches = periods*self.q
+            if chunks > 0:
+                num_batches += 1
+                if (chunks - self.n) > 0:
+                    num_batches += math.ceil((chunks - self.n)/self.q)
+            return num_batches
+
+    def __iter__(self):
+        self.batch_size = self.n if (self.step % self.q == 0) else self.q
+        if self.drop_last:
+            sampler_iter = iter(self.sampler)
+            while True:
+                try:
+                    batch = [next(sampler_iter) for _ in range(self.batch_size)]
+                    yield batch
+                    self.step += 1
+                    self.batch_size = self.n if (self.step % self.q == 0) else self.q
+                except StopIteration:
+                    break
+        else:
+            batch = [0] * self.batch_size
+            idx_in_batch = 0
+            for idx in self.sampler:
+                batch[idx_in_batch] = idx
+                idx_in_batch += 1
+                if idx_in_batch == self.batch_size:
+                    yield batch
+                    self.step += 1
+                    self.batch_size = self.n if (self.step % self.q == 0) else self.q
+                    idx_in_batch = 0
+                    batch = [0] * self.batch_size
+            if idx_in_batch > 0:
+                yield batch[:idx_in_batch]
+                self.step += 1
+                self.batch_size = self.n if (self.step % self.q == 0) else self.q
+
+import torch
+import numpy as np
+import random
+def set_all_seeds():
+    seed = random.randint(0, 2**32 - 1)  # Generate a random seed
+
+    # Set the seeds for all relevant libraries
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+    return seed

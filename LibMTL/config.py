@@ -9,7 +9,7 @@ _parser.add_argument('--seed', type=int, default=0, help='random seed')
 _parser.add_argument('--gpu_id', default='0', type=str, help='gpu_id') 
 _parser.add_argument('--weighting', type=str, default='EW',
     help='loss weighing strategies, option: EW, UW, GradNorm, GLS, RLW, \
-        MGDA, PCGrad, GradVac, CAGrad, GradDrop, DWA, IMTL')
+        MGDA, PCGrad, GradVac, CAGrad, GradDrop, DWA, IMTL, PSMGD')
 _parser.add_argument('--arch', type=str, default='HPS',
                     help='architecture for MTL, option: HPS, MTAN')
 _parser.add_argument('--rep_grad', action='store_true', default=False, 
@@ -38,12 +38,18 @@ _parser.add_argument('--T', type=float, default=2.0, help='T for DWA')
 ## MGDA
 _parser.add_argument('--mgda_gn', default='none', type=str, 
                     help='type of gradient normalization for MGDA, option: l2, none, loss, loss+')
+## PSMGD
+_parser.add_argument('--psmgd_gn', default='none', type=str, 
+                    help='type of gradient normalization for PSMGD, option: l2, none, loss, loss+')
+_parser.add_argument('--n', type=int, default=9, help='periodic batch size for PSMGD')
+_parser.add_argument('--q', type=int, default=5, help='q for PSMGD')
+_parser.add_argument('--freq', type=int, default=10, help='freq for PSMGD')
 ## GradVac
 _parser.add_argument('--GradVac_beta', type=float, default=0.5, help='beta for GradVac')
 _parser.add_argument('--GradVac_group_type', type=int, default=0, 
                     help='parameter granularity for GradVac (0: whole_model; 1: all_layer; 2: all_matrix)')
 ## GradNorm
-_parser.add_argument('--alpha', type=float, default=1.5, help='alpha for GradNorm')
+_parser.add_argument('--alpha', type=float, default=1.5, help='alpha for GradNorm or PSMGD')
 ## GradDrop
 _parser.add_argument('--leak', type=float, default=0.0, help='leak for GradDrop')
 ## CAGrad
@@ -69,7 +75,8 @@ _parser.add_argument('--STCH_warmup_epoch', type=int, default=4, help=' ')
 _parser.add_argument('--robust_step_size', default=1e-2, type=float, help='step size')
 ## FairGrad
 _parser.add_argument('--FairGrad_alpha', type=float, default=1.0, help=' ')
-
+## STL
+_parser.add_argument('--main_task', type=int, default=0, help='main task number for STL')
 # args for architecture
 ## CGC
 _parser.add_argument('--img_size', nargs='+', help='image size for CGC')
@@ -91,7 +98,7 @@ def prepare_args(params):
     if params.weighting in ['EW', 'UW', 'GradNorm', 'GLS', 'RLW', 'MGDA', 'IMTL',
                             'PCGrad', 'GradVac', 'CAGrad', 'GradDrop', 'DWA', 
                             'Nash_MTL', 'MoCo', 'Aligned_MTL', 'DB_MTL', 'STCH', 
-                            'ExcessMTL', 'FairGrad']:
+                            'ExcessMTL', 'FairGrad', 'PSMGD','EW_DS', 'STL']:
         if params.weighting in ['DWA']:
             if params.T is not None:
                 kwargs['weight_args']['T'] = params.T
@@ -110,6 +117,36 @@ def prepare_args(params):
                     raise ValueError('No support mgda_gn {} for MGDA'.format(params.mgda_gn)) 
             else:
                 raise ValueError('MGDA needs keywaord mgda_gn')
+            
+        elif params.weighting in ['PSMGD']:
+            if params.psmgd_gn is not None:
+                if params.psmgd_gn in ['none', 'l2', 'loss', 'loss+']:
+                    kwargs['weight_args']['psmgd_gn'] = params.mgda_gn
+                else:
+                    raise ValueError('No support psmgd_gn {} for PSMGD'.format(params.mgda_gn)) 
+            else:
+                raise ValueError('PSMGD needs keyword psmgd_gn')
+
+            if params.alpha is None:
+                raise ValueError('PSMGD needs keyword alpha')
+            else:
+                kwargs['weight_args']['alpha'] = params.alpha
+
+            if params.n is None:
+                raise ValueError('PSMGD needs keyword n')  
+            else:   
+                kwargs['weight_args']['n'] = params.n
+
+            if params.q is None:
+                raise ValueError('PSMGD needs keyword q')  
+            else:   
+                kwargs['weight_args']['q'] = params.q
+
+            if params.freq is None:
+                raise ValueError('PSMGD needs keyword freq')  
+            else:   
+                kwargs['weight_args']['freq'] = params.freq
+
         elif params.weighting in ['GradVac']:
             if params.GradVac_beta is not None:
                 kwargs['weight_args']['GradVac_beta'] = params.GradVac_beta
@@ -134,6 +171,12 @@ def prepare_args(params):
                 kwargs['weight_args']['max_norm'] = params.max_norm
             else:
                 raise ValueError('Nash_MTL needs update_weights_every, optim_niter, and max_norm')
+        elif params.weighting in ['STL']:
+            if params.main_task is not None:
+                kwargs['weight_args']['main_task'] = params.main_task
+            else:
+                raise ValueError('STL needs main_task')
+            
         elif params.weighting in ['MoCo']:
             kwargs['weight_args']['MoCo_beta'] = params.MoCo_beta
             kwargs['weight_args']['MoCo_beta_sigma'] = params.MoCo_beta_sigma

@@ -59,7 +59,7 @@ class _PerformanceMeter(object):
                 print(m+' ', end='')
             print('| ', end='')
         print('TIME')
-    
+
     def display(self, mode, epoch):
         if epoch is not None:
             if epoch == 0 and self.base_result is None and mode==('val' if self.has_val else 'test'):

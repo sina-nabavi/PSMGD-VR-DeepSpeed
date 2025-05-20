@@ -1,0 +1,97 @@
+examples/nyu/data*
+examples/nyu/psmgd
+examples/nyu/PSMGDVR*
+examples/nyu/plot
+examples/nyu/data*
+examples/nyu/ds_requirement
+examples/nyu/0727
+examples/nyu/results
+
+examples/cityscapes/data*
+examples/office/data*
+examples/qm9/data
+examples/nyu/out*
+examples/cityscapes/out*
+examples/office/out*
+examples/qm9/out*
+examples/qm9/PSMGD*
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+*.env
+*.venv
+
+# PyTorch specific
+checkpoints/
+runs/              # TensorBoard logs
+*.pth              # Model weights
+*.pt               # Model weights
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# PyCharm
+.idea/
+
+# VSCode
+.vscode/
+
+# MyPy
+.mypy_cache/
+
+# Pyre
+.pyre/
+
+# Data files (optional - comment out if you want to track them)
+data/
+*.csv
+*.tsv
+*.h5
+*.npz
+
+# Logs
+*.log
+
+# System files
+.DS_Store
+Thumbs.db
+
+

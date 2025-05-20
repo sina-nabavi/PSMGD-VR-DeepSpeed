@@ -1,12 +1,12 @@
 import torch, argparse, sys
 import torch.nn as nn
 import torch.nn.functional as F
-
+from utils import *
 from create_dataset import CityScapes
 sys.path.append('../nyu')
 from utils import *
 from aspp import DeepLabHead
-
+from torch.utils.data import RandomSampler
 from LibMTL import Trainer as Trainer
 from LibMTL.model import resnet_dilated
 from LibMTL.utils import set_random_seed, set_device
@@ -27,13 +27,21 @@ def main(params):
     city_train_set = CityScapes(root=params.dataset_path, mode=params.train_mode)
     city_test_set = CityScapes(root=params.dataset_path, mode='test')
     
+    # city_train_loader = torch.utils.data.DataLoader(
+    #     dataset=city_train_set,
+    #     batch_size=params.train_bs,
+    #     shuffle=True,
+    #     num_workers=2,
+    #     pin_memory=True,
+    #     drop_last=True)
+    if params.weighting in ['PSMGD']:
+        n = kwargs['weight_args']['n']
     city_train_loader = torch.utils.data.DataLoader(
         dataset=city_train_set,
-        batch_size=params.train_bs,
-        shuffle=True,
+        batch_sampler = PeriodicSquareRootSampler(RandomSampler(city_train_set),
+                        n=n, q=5),
         num_workers=2,
-        pin_memory=True,
-        drop_last=True)
+        pin_memory=True)
     
     city_test_loader = torch.utils.data.DataLoader(
         dataset=city_test_set,

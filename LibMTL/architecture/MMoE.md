@@ -1,0 +1,1 @@
+`gate_rep = torch.einsum('ij..., ji -> j...', experts_shared_rep, selector)` `j` is the input size, `i` is the `num_experts`.

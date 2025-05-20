@@ -18,7 +18,9 @@ from LibMTL.weighting.DB_MTL import DB_MTL
 from LibMTL.weighting.STCH import STCH
 from LibMTL.weighting.ExcessMTL import ExcessMTL
 from LibMTL.weighting.FairGrad import FairGrad
-
+from LibMTL.weighting.PSMGD import PSMGD
+from LibMTL.weighting.EW_DS import EW_DS
+from LibMTL.weighting.STL import STL
 __all__ = ['AbsWeighting',
            'EW', 
            'GradNorm', 
@@ -38,4 +40,7 @@ __all__ = ['AbsWeighting',
            'DB_MTL',
            'STCH',
            'ExcessMTL',
-           'FairGrad']
+           'FairGrad',
+           'PSMGD',
+           'EW_DS',
+           'STL']
